@@ -1,0 +1,156 @@
+
+------------------------------------
+----- virtualbox，Linux，bochs -----
+------------------------------------
+
+1.虚拟机virtualbox，下载地址 http://download.virtualbox.org/virtualbox
+
+2.下载Linux，下载地址：mirrors.163.com（网易提供的国内镜像下载站）
+
+3.安装virtualbox，创建对象，选择下载好的Linux镜像(.iso文件)
+
+4.进入到Linux系统后，下载bochs（x86硬件平台的开源模拟器）
+
+5.将虚拟机virtualbox设置成可联网，设置--->Network--->Adapter1--->将 Attached to 选项设置成 NAT
+
+6.bochs下载地址：http://sourceforge.net/projects/bochs/files/bochs/
+
+7.解压  tar zxvf bochs-*.tar.gz
+
+8.编译，先进入到目录 cd bochs-*，开始 configure、make、make install 三步曲
+
+9.编译完之后会得到一个名为 bochs 的目录，bochs的启动文件就在 bochs/bin 目录下
+
+
+
+
+---------------------
+----- 安装bochs -----
+---------------------
+
+注意：bochs用到了图形模块，必须在Linux的图形系统级别下才能运行
+
+
+——- centOS ———
+sudp yum update ，sudo yum install wget
+
+
+2. wget https://nchc.dl.sourceforge.net/project/bochs/bochs/2.6/bochs-2.6.tar.gz
+
+3. tar zxvf bochs-2.6.tar.gz
+
+4. cd bochs-2.6
+
+5. sudo yum install gcc  ; 安装bochs需要用到gcc
+
+6. sudo yum install glibc-headers gcc-c++  ; 安装bochs需要用到gcc-c++
+
+7. ./configure \
+   --prefix=/home/qwe/bochs \  
+   --enable-debugger \        
+   --enable-disasm \        
+   --enable-iodebug \      
+   --enable-x86-debugger \
+   --with-x \   
+   --with-x11  
+
+
+   ./configure \
+   --prefix=/home/qwe/bochs \     ; 指定 bochs 的安装目录
+   --enable-debugger \            ; 打开 bochs 自己的调试器
+   --enable-disasm \              ; 使 bochs 支持反汇编
+   --enable-iodebug \             ; 启用 io 接口调试器
+   --enable-x86-debugger \        ; 支持 x86 调试器
+   --with-x \                     ; 使用x windows
+   --with-x11                     ; 使用 x11 图形用户接口
+
+   configure 之后，会生成 Makefile，可以开始编译了
+
+
+    ERROR: X windows gui was selected, but X windows libraries were not found.
+
+    使用sudo apt-get install libx11-dev
+
+
+    ERROR: pkg-config was not found, or unable to access the gtk+-2.0 package.
+
+    使用 sudo apt-get install libgtk2.0-dev
+
+8. make
+
+   make的时候有一个DSO错误，打开 makefile 文件，找到 LIBS= -lm -lgtk-..... -lfreetype
+
+   在后面追加 -lz -lrt -lpthread
+
+9. make install
+
+10. /home/qwe/bochs/bin/bochs  ; 运行bochs
+
+
+
+
+——- Ubuntu ———
+
+sudo apt install bochs
+
+sudo apt install bochs bochs-x
+
+
+相关文件所在路径：
+
+Bochs启动程序
+/usr/bin/bochs
+
+
+Bochs自带的制作磁盘映像文件的工具
+/usr/bin/bximage
+
+Bochs配置文件的例子
+/usr/share/doc/bochs/examples/bochsrc
+
+
+BIOS映像文件(通常为BIOS-bochs-latest)
+/usr/share/bochs/BIOS-bochs-*
+
+
+VGA BIOS映像文件(通常为VGABIOS-lgpl-latest)
+/usr/local/share/bochs/VGABIOS-*
+
+
+---------------------
+----- 配置bochs -----
+---------------------
+
+1.在 bochs 目录下，创建文件 config
+
+  bochs(模拟器）启动时需要提供此文件路径，模拟器会根据配置文件内容创建自己，这样虚拟机就健全了
+
+2.config文件内容
+
+    megs 30  # bochs在运行过程中能使用的内存
+    
+    boot: disk # 从硬盘启动
+
+    # 设置对应真实机器的 BIOS 和 VGA BIOS
+
+    romimage: file=/usr/share/bochs/BIOS-bochs-latest
+    vgaromimage: file=/usr/share/bochs/VGABIOS-lgpl-latest
+
+    log: /home/hel/bochs/bochs.out
+
+    mouse: enabled=0
+    keyboard: keymap=/usr/share/bochs/keymaps/x11-pc-us.map
+
+    ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
+
+
+
+
+3. 使用bximage程序，创建虚拟硬盘
+   
+   bximage , hd —> flat —> 50 —> 50M.mg 
+
+   将参数信息拷贝到配置文件中。
+
+
+4.  ./bin/bochs -f /home/hel/config

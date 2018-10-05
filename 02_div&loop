@@ -1,0 +1,55 @@
+
+
+jmp near start
+
+
+numAddr db 0,0,0   ; 通过db占用三字节内存空间，用来保存要打印的十进制ASCII值
+                   ; MBR的最大偏移地址值是512，因此只需要三个字节就够了
+
+
+start:
+	mov ax,0x07c0    ; 设置段地址，方便操作段中的数据
+	mov ds,ax
+
+	xor dx,dx        ; 设置除数
+	mov ax,numAddr   ; numAddr就是要打印的汇编地址
+	mov bx,10        ; 设置除数
+
+
+
+	mov cx,0x03      ; 循环三次，求得地址十进制数值
+	mov si,numAddr   ; 始终指向数值要保存到的地址
+
+lp1:
+	xor  dx,dx     ; 将dx清零。xor代表异或，相同位上的值相同则结果为0，不同则结果为1
+	div  bx        ; 除数是16位的，因此 DX和AX 组成的32位值被作为除数，运算后，商会保存在AX中，余数会保存在DX中
+	add  dl,0x30   ; 将余数转成ASCII值
+	mov  [si],dl   ; 保存余数
+	inc  si
+	loop lp1
+
+	dec  si   ; 减一后，si指向数据区的最后一位数
+
+
+	mov ax,0xb800    ; 8086的显存起始地址
+	mov es,ax
+	mov di,0         ; [es:di]组合指向显存地址
+
+    mov cx,0x03      ; 循环三次，将十进制数值写入显存
+
+lp2:
+    mov ax,[si]        ; mov 指令的源操作数和目的操作数，不能同时为地址值
+	mov [es:di],ax     ; 将要显示的ASCII字符写入显存
+	inc di
+	mov byte [es:di],0x02   ; 设置显示属性
+	inc di
+	dec si
+	loop lp2
+
+
+	jmp $
+
+	times 510-($-$$) db 0
+
+	db 0x55,0xaa
+

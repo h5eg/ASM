@@ -1,0 +1,66 @@
+
+
+
+dd命令，用于磁盘操作，可以深入磁盘的任何一个扇区，也可以删除 Linux 操作系统自己的文件
+
+虚拟环境：dd  if=/your_path/mbr.bin  of=/your_path/bochs/hd60M.img  bs=512  count=1  conv=notrunc
+
+实际环境：dd  if=/obj/ASM/05mbr.bin  of=/dev/disk2  bs=512  count=1  conv=notrunc
+
+
+
+参数选项：
+if = 要写入的文件
+of = 输出到文件
+bs=<字节数>   ：将 输入与输出 设成指定的字节数
+cbs=<字节数>  ：转换时，每次只转换指定的字节数
+conv=<关键字> ：指定文件转换的方式
+count=<区块数>：仅读取指定的区块数
+ibs=<字节数>  ：每次读取的字节数
+obs=<字节数>  ：每次输出的字节数
+seek=<区块数> ：一开始输出时，跳过指定的区块数
+skip=<区块数> ：一开始读取时，跳过指定的区块数
+--help   ：帮助
+--version：显示版本信息
+
+
+
+count=blocks 只拷贝输入的blocks块。
+
+conv = ASCII 把EBCDIC码转换为ASCIl码。
+
+conv = ebcdic 把ASCIl码转换为EBCDIC码。
+
+conv = ibm 把ASCIl码转换为alternate EBCDIC码。
+
+conv = block 把变动位转换成固定字符。
+
+conv = ublock 把固定位转换成变动位。
+
+conv = ucase 把字母由小写转换为大写。
+
+conv = lcase 把字母由大写转换为小写。
+
+conv = notrunc 不截断输出文件。
+
+conv = swab 交换每一对输入字节。
+
+conv = noerror 出错时不停止处理。
+
+conv = sync 把每个输入记录的大小都调到ibs的大小（用NUL填充）。
+
+
+
+
+----- mac上使用dd命令 ----
+
+在mac上使用dd对磁盘进行写入时，需要先释放目标磁盘：diskutil umountDisk /dev/disk3
+
+util:工具
+umountDisk:卸载文件系统
+
+mac上查看磁盘信息：diskutil list  或  df -h
+
+
+
+

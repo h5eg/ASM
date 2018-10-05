@@ -1,0 +1,103 @@
+
+
+
+jmp near start
+
+
+
+message db "1+2+3+...+100="
+
+
+
+start:
+
+	mov ax,0x07c0
+	mov ds,ax
+	mov si,message   ; 源索引寄存器
+
+	mov ax,0xB800
+	mov es,ax
+	mov di,0         ; 目标索引寄存器
+
+	mov cx,start-message   ; 传输次数
+
+
+; 显示 message 内容
+showData:
+
+	mov al,[si]      ; al用来限定获取一字节
+	mov [es:di],al   ; 将数据传送到显存地址。数据已经被编译器转换成ASCII格式，可以直接输出
+
+	inc di
+	mov byte [es:di],0x02   ; 设置字符显示属性
+
+	inc si
+	inc di
+
+	loop showData  ; 开始循环，每次循环都会将CX值减一，同时判断CX值是否为0，为0结束循环
+
+
+
+; 计算1～100的总和
+
+xor ax,ax   ; 先将ax的值清空，用来存放1～100的累加值
+mov cx,1    ; 每次循环cx值加一，直到值为100
+
+sum:
+
+	add ax,cx
+	inc cx
+	cmp cx,100
+	jle sum      ; jle用于小于等于判断，只要cx小于等于100，条件循环就成立
+
+
+
+; 分解1～100的总和值分解，并转成ASCII，并推入栈中
+
+xor cx,cx   ; 设置栈地址
+mov ss,cx
+mov sp,cx
+
+mov bx,10   ; 设置除数
+
+pushStack:
+
+	inc cx       ; 计算余数一共有几位
+	xor dx,dx    ; ax中已经保存了1～100的累加和
+
+	div bx       ; 余数会被放在dx中，商放在AX中
+
+	add dl,0x30  ; 将得到的余数加上0x30，转成ASCII
+
+	push dx      ; 将余数推入栈中
+
+	cmp ax,0
+	jne pushStack  ; 只要ax不等于0，条件循环就成立
+
+
+; 将1～100的总和值弹出栈，并传递到显存上
+popStack:
+
+	pop bx          ; 出栈，将数据弹出到bx中
+
+	mov [es:di],dl  ; 输出结果
+
+	inc di
+	mov byte [es:di],0x40
+
+	inc di
+	loop popStack   ; 每次循环CX的值都会减一，CX值位0时，停止循环。CX的值在将数值推入到栈的过程中就已经统计好了
+
+
+jmp $
+
+times 510-($-$$) db 0
+
+db 0x55,0xAA
+
+
+
+
+
+
+

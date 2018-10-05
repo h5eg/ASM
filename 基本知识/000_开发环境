@@ -9,17 +9,9 @@
 
 3.安装virtualbox，创建对象，选择下载好的Linux镜像(.iso文件)
 
-4.进入到Linux系统后，下载bochs（x86硬件平台的开源模拟器）
+4.将虚拟机virtualbox设置成可联网，设置--->Network--->Adapter1--->将 Attached to 选项设置成 NAT
 
-5.将虚拟机virtualbox设置成可联网，设置--->Network--->Adapter1--->将 Attached to 选项设置成 NAT
-
-6.bochs下载地址：http://sourceforge.net/projects/bochs/files/bochs/
-
-7.解压  tar zxvf bochs-*.tar.gz
-
-8.编译，先进入到目录 cd bochs-*，开始 configure、make、make install 三步曲
-
-9.编译完之后会得到一个名为 bochs 的目录，bochs的启动文件就在 bochs/bin 目录下
+5.进入到Linux系统后，下载并安装bochs（x86硬件平台的开源模拟器）
 
 
 
@@ -28,22 +20,25 @@
 ----- 安装bochs -----
 ---------------------
 
-注意：bochs用到了图形模块，必须在Linux的图形系统级别下才能运行
+注意：bochs 用到了图形模块，必须在Linux的图形系统级别下才能运行
 
 
-——- centOS ———
-sudp yum update ，sudo yum install wget
+----- centOS环境 -----
+
+1.sudp yum update
+
+  sudo yum install wget
+
+2. sudo yum install gcc  ; 安装bochs需要用到gcc
+
+3. sudo yum install glibc-headers gcc-c++  ; 安装bochs需要用到gcc-c++
 
 
-2. wget https://nchc.dl.sourceforge.net/project/bochs/bochs/2.6/bochs-2.6.tar.gz
+4. wget https://nchc.dl.sourceforge.net/project/bochs/bochs/2.6/bochs-2.6.tar.gz
 
-3. tar zxvf bochs-2.6.tar.gz
+5. tar zxvf bochs-2.6.tar.gz
 
-4. cd bochs-2.6
-
-5. sudo yum install gcc  ; 安装bochs需要用到gcc
-
-6. sudo yum install glibc-headers gcc-c++  ; 安装bochs需要用到gcc-c++
+6. cd bochs-2.6
 
 7. ./configure \
    --prefix=/home/qwe/bochs \  
@@ -54,6 +49,8 @@ sudp yum update ，sudo yum install wget
    --with-x \   
    --with-x11  
 
+
+----- 参数说明 -----
 
    ./configure \
    --prefix=/home/qwe/bochs \     ; 指定 bochs 的安装目录
@@ -67,14 +64,14 @@ sudp yum update ，sudo yum install wget
    configure 之后，会生成 Makefile，可以开始编译了
 
 
-    ERROR: X windows gui was selected, but X windows libraries were not found.
+   ERROR: X windows gui was selected, but X windows libraries were not found.
 
-    使用sudo apt-get install libx11-dev
+   使用sudo yum install libx11-dev
 
 
-    ERROR: pkg-config was not found, or unable to access the gtk+-2.0 package.
+   ERROR: pkg-config was not found, or unable to access the gtk+-2.0 package.
 
-    使用 sudo apt-get install libgtk2.0-dev
+   使用 sudo yum install libgtk2.0-dev
 
 8. make
 
@@ -84,12 +81,10 @@ sudp yum update ，sudo yum install wget
 
 9. make install
 
-10. /home/qwe/bochs/bin/bochs  ; 运行bochs
 
 
 
-
-——- Ubuntu ———
+----- Ubuntu环境 -----
 
 sudo apt install bochs
 
@@ -123,7 +118,7 @@ VGA BIOS映像文件(通常为VGABIOS-lgpl-latest)
 
 1.在 bochs 目录下，创建文件 config
 
-  bochs(模拟器）启动时需要提供此文件路径，模拟器会根据配置文件内容创建自己，这样虚拟机就健全了
+  bochs(模拟器）启动时需要提供此文件路径，模拟器会根据配置文件内容创建自己，这样模拟器就健全了
 
 2.config文件内容
 
@@ -134,12 +129,14 @@ VGA BIOS映像文件(通常为VGABIOS-lgpl-latest)
     # 设置对应真实机器的 BIOS 和 VGA BIOS
 
     romimage: file=/usr/share/bochs/BIOS-bochs-latest
-    vgaromimage: file=/usr/share/bochs/VGABIOS-lgpl-latest
+
+    vgaromimage: file=/usr/share/bochs/VGABIOS-lgpl-latest
 
     log: /home/hel/bochs/bochs.out
 
     mouse: enabled=0
-    keyboard: keymap=/usr/share/bochs/keymaps/x11-pc-us.map
+
+    keyboard: keymap=/usr/share/bochs/keymaps/x11-pc-us.map
 
     ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
 
@@ -148,9 +145,9 @@ VGA BIOS映像文件(通常为VGABIOS-lgpl-latest)
 
 3. 使用bximage程序，创建虚拟硬盘
    
-   bximage , hd —> flat —> 50 —> 50M.mg 
+   bximage ,参数选择： hd —> flat —> 50 —> 50M.mg 
 
-   将参数信息拷贝到配置文件中。
+   将生成的参数信息拷贝追加到配置文件 config 中。
 
 
-4.  ./bin/bochs -f /home/hel/config
+4. 运行bochs: ./bin/bochs -f /home/hel/config

@@ -5,25 +5,18 @@
 ; --- 显示ASCII ---
 ; ---------------------
 
-dd app_end ; (0x00~0x03)程序大小
-
-dw start   ; (0x04~0x05)
-dd section.main.start  ; (0x06~0x09)
-
 section main align=16 vstart=0
 
-jmp near start   ; 直接跳到可运行的指令
-
+dw start   ; (0x00~0x01)   ; 程序入口
+dw section.main.start  ; (0x02~0x04)
 
 ; 要显示的数据
 data db 'U',0x02,'S',0x02,'R',0x02,\
 		'A',0x02,'P',0x02,'P',0x02
 
-
 start:
 
 	mov si,data
-
 	mov ax,0xb800   ; 显卡地址范围 0xB8000 ~ 0xBFFFF
 	mov es,ax
 	mov di,0
@@ -34,14 +27,11 @@ start:
 
 	rep movsb
 
+	jmp $ 
 
-	jmp $      ; $代表当前位置的汇编地址，jmp代表执行目标地址上的指令，此处会构成无限循环
 
-	times 510-($-$$) db 0      ; $$代表所在段起始地址，db代表在当前位置写入一个字节数据，times指明执行该指令的次数
-
-	db 0x55,0xaa  				; MBR的最后两字节必须是 0x55, 0xaa
-    
-app_end
+; 编译：nasm 04_userApp -o 04_userApp.bin
+; 写入：dd if=/home/hel/github/ASM/04_userApp.bin of=/home/hel/60M.img conv=notrunc seek=5
 
 
 

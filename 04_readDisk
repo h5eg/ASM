@@ -27,68 +27,26 @@ start:
 
     ; ----- 读取磁盘 -----
     ; 参数介绍：
-    ; DS:SI，指向要读取的逻辑扇区号(LBA28编号模式，用28比特来表示逻辑扇区号，可以管理128GB的硬盘)
-    ; ES:DI，指向数据要保存到的内存地址
-    ; BL，指明要读取的扇区数
+    ; ES:SI，指向要读取的逻辑扇区号(LBA28编号模式，用28比特来表示逻辑扇区号，可以管理128GB的硬盘)
+    ; DS:DI，指向数据要保存到的内存地址
     
     mov ax,0
-    mov ds,ax
-    mov si,app_lba_start    ; 设置DS：SI
+    mov es,ax
+    mov si,app_lba_start    ; 设置ES：SI
 
-    mov ax,[cs:phy_base]
-    mov dx,[cs:phy_base+0x02]
+    mov ax,[phy_base]
+    mov dx,[phy_base+0x02]
     mov bx,16   ; 除以16，等同于右移4位(2*2*2*2=16)，得到段地址
     div bx
-    mov es,ax   ; 设置ES：DI
+    mov ds,ax   ; 设置DS：DI
     mov di,0
 
-    mov bl,1    ; 设置BL
-    
-    pop ax    ; 保存指向用户程序的起始段地址
-    
     call read_hard_disk_proc  ; 开始读取磁盘
 
-    ; 计算被加载程序的扇区大小
-    mov ax,[es:0]    ; 用户程序的大小被写在了，用户程序的起始地址处，program_length  dd program_end
-    mov dx,[es:2]    ; ax 和 dx 的组合，存放用户程序的大小值
-    mov bx,512       ; 每扇区512字节
-    div bx
-
-    cmp dx,0      ; 判断余数是否为0
-    jne remainder ; 存在余数，跳转到remainder
-    dec ax        ; 除尽，ax值减一，减一是因为已经读了一个扇区
-
-    remainder:
-        cmp ax,0
-        je read_hard_disk_end  ; 如果程序小于512字节，不再读取扇区
-    
-    ; 读取剩余扇区数
-    inc si       ; 设置DS：SI，DS值不需要改变，SI加一，指向下一个扇区
-    mov ax,es
-    add ax,0x20  ; 让es越过512字节，得到下一个段地址 0x200 == 2*16*16 == 512，0x200右移四位得到0x20
-    mov es,ax
-    mov di,0
-    
-    mov bl,al    ; 要读取的扇区数
-    
-    read_hard_disk_end
-    
-    push ax    ; 弹出指向用户程序的起始段地址
-    mov  ds,ax
-
-
     ; 重定位用户程序运行点的段地址值
-    relocation:
-        mov ax,[0x06] 
-        mov dx,[0x08]
-        mov bx,16
-        div bx
-        mov bx,ds
-        add ax,bx
+    mov [0x02],ds   ; 将16位的段地址回填
 
-        mov [0x06],ax  ; 段地址是16位的，只需将ax回填即可
-
-    jmp far [0x04]  ; 跳转到用户程序中
+    jmp far [0x00]  ; 跳转到用户程序中
 
 
 
@@ -98,18 +56,16 @@ start:
 
 ; 参数介绍：
 
-; BL，指明要读取的扇区数
+; ES:SI，指向要读取的逻辑扇区号(LBA28编号模式，用28比特来表示逻辑扇区号，可以管理128GB的硬盘)
 
-; DS:SI，指向要读取的逻辑扇区号(LBA28编号模式，用28比特来表示逻辑扇区号，可以管理128GB的硬盘)
-
-; ES:DI，指向数据要保存到的内存地址
+; DS:DI，指向数据要保存到的内存地址
          
 ;        存在的隐患：DI的值范围0x0000~0xFFFF，如果DI的值超过了0xFFFF，值会回到0x0000
 ;                  导致读取的数据超过0xFFFF字节，就会发生数据覆盖的现象
          
-;        解决方案：以512字节为基本读取单元，每读取一个扇区，ES的值向前移动512，指向新的段
-;                通过更新ES值的方式，解决了DI值受限的问题
-;                让ES值加上0x20即可，0x200 == 2*16*16 == 512，0x200右移四位得到0x20
+;        解决方案：以512字节为基本读取单元，每读取一个扇区，DS的值向前移动512，指向新的段
+;                通过更新DS值的方式，解决了DI值受限的问题
+;                让DS值加上0x20即可，0x200 == 2*16*16 == 512，0x200右移四位得到0x20
 
 ; 主硬盘分配的端口号：0x1f0 ~ 0x1f7
 ; 0x1f0(16位)，用于读写磁盘的数据都会经过该端口
@@ -120,18 +76,14 @@ start:
 
 read_hard_disk_proc:
 
-    ; 1.检测要读取的扇区数是否正确
-    cmp bl,0
-    je  read_hard_disk_proc_end  ; 如果bl等于0，结束磁盘读取
-
-    ; 2.写入要读取的扇区数
+    ; 1.写入要读取的扇区数
     mov dx,0x1f2    ; dx指明要操作的端口号
-    mov al,bl       ; al存放要写入到端口的数据
+    mov al,1       ; al存放要写入到端口的数据
     out dx,al       ; 端口号 0x1f2 中的数值，表明要读取的扇区数
 
-    ; 3.写入要读取的逻辑扇区号
+    ; 2.写入要读取的逻辑扇区号
     inc dx          ; 端口号0x1f3～0x1f6，保存28位的逻辑扇区号值
-    mov ax,si       ; DI:SI，保存了起始逻辑扇区号
+    mov ax,si       ; ES:SI，保存了起始逻辑扇区号
     out dx,al       ; 将SI中的低八位值，写入到端口号0x1f3中
 
     inc dx          ; 0x1f4
@@ -139,78 +91,44 @@ read_hard_disk_proc:
     out dx,al       ; 将SI中的高八位值，写入到端口号0x1f4中
 
     inc dx          ; 0x1f5
-    mov ax,ds
-    out dx,al       ; 将DS中的低八位值，写入到端口号0x1f5中
+    mov ax,es
+    out dx,al       ; 将ES中的低八位值，写入到端口号0x1f5中
 
     inc dx          ; 端口0x1f6的寄存器中，后4位的值用来指明 访问模式 和 访问的磁盘
     mov al,0xe0     ; e == 1110，最高三位全是1，表示使用LBA模式，第四位的0值代表访问主盘
     or  al,ah
     out dx,al
 
+    ; 3.发布读指令，等待磁盘系统准备完毕
     inc dx          ; 0x1f7
     mov al,0x20     ; 读命令
     out dx,al
 
-    .waits:          ; 给出了读取的逻辑扇区号，读取的扇区数量，以及读取命令，磁盘系统就开始准备了
+    waiting:          ; 给出了读取的逻辑扇区号，读取的扇区数量，以及读取命令，磁盘系统就开始准备了
                      ; 硬盘开始准备时，会将该端口的最高位设置成1 (1010 0000)
                      ; 当硬盘准备好后，会将最高位设置成0，同时将第3位设置成1 （0010 1000）
 
         in  al,dx    ; 从端口0x1f7中读数据
         and al,0x88  ; 0x88 = 1000 1000
         cmp al,0x08  ; 只要磁盘系统准备完毕，与0x88进行and运算后，结果值一定是0x08
-        jne .waits   ; al不等于0x08，条件成立
+        jne waiting  ; al不等于0x08，继续等待
 
-    ; 4.准备从端口0x1f0中读取读取数据，端口0x1f0是16位的
+    ; 4.从端口0x1f0读取数据，端口0x1f0是16位的
     mov cx,256     ; 256*2=512
     mov dx,0x1f0
 
     readData:
         in   ax,dx       ; 从端口0x1f0中读取16位数据，并保存到ax中
-        mov  [es:di],ax  ; 将读取到的数据，保存到 [es:si] 指向的地址中
+        mov  [di],ax     ; 将读取到的数据，保存到 [ds:si] 指向的地址中
         add  di,2
         loop readData    ; 读取的次数由寄存器cx决定
-        
-        dec bl
-        cmp bl,0         
-        je read_hard_disk_proc_end ; 检测bl的值，为0代表读取磁盘结束
-        
-        mov cx,256
-        inc si        ; 读取下一个扇区
-        mov dx,0x1f3
-        mov ax,si
-        out dx,al
-        inc dx
-        mov al,ah
-        out dx,al
-        mov ax,es
-        add ax,0x20  ; 让es越过512字节，得到下一个段地址 0x200 == 2*16*16 == 512，0x200右移四位得到0x20
-        mov es,ax
-        mov di,0
-        jmp near readData
-        
-    read_hard_disk_proc_end
 
     ret  ; 结束过程调用
 
-
-
-;----- relocation_proc -----
-
-; 将程序中的段地址(汇编地址)，转成加载到内存后的逻辑段地址
-
-; DX+AX组合，保存着要进行重定位的段地址
-
-relocation_proc:
-
-    add ax,[cs:phy_base]        ; 存在一个隐患，两个16位值相加，再存放到16位寄存器中，很可能出现值溢出的现象，这就导致最终结果错误
-    add dx,[cs:phy_base+0x02]   ; 8086只有20位有效地址，其中低16位在ax中，剩余的4位在dx的低四位中
-    shr ax,4                    ; ax向右移动4位，空出高4位来
-    ror dx,4                    ; ror是循环右移指令，该指令把dx的低4位逐个转移到了高4位上
-    and dx,0xf000               ; 将dx的低12位清零
-    or  ax,dx                   ; 两者结合得到重定位后的逻辑段地址，保存在ax寄存器中
-
-    ret
-
-times 510-($-$$) db 0
+times 510-($-$$) db 0 
 
 db 0x55,0xaa
+
+
+
+

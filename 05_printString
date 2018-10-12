@@ -1,0 +1,172 @@
+
+
+; VGA标准模式下，屏幕可以显示25行ASCII字符，每行80个ASCII字符，25*80-1=1999
+
+; 0值表示第0行第0列，值79表示第一行最后一列
+
+
+
+; 一个ASCII字符在显存中需要 两字节 来表示，可以将光标位置乘2，来得到该位置在显存中的偏移地址
+
+; 使用shl左移一位等同于乘以2，使用shr右移一位等同于除以2
+
+
+
+; 光标信息保存在显卡内部的 两个8位的 光标寄存器中，合起来形成一个16位的数值，光标寄存器 可读可写
+
+; 主机I/O接口有限，因此很多外部设备寄存器都统一连接到索引寄存器，再由索引寄存器连接到I/O总线
+
+; 该索引寄存器的端口号是0x3d4，往其中写入值可以指定要访问的外部设备寄存器
+
+; 索引值 0x0e 和 0x0f 分别用于提供光标位置的 高8位和低8位
+
+; 指定索引值后，可以通过端口0x3d5来进行读写
+
+
+section mbr vstart=0x7c00
+
+jmp start
+
+data:
+    db 'A','A','A','A','A','A','A','A','A','A'
+    db 'B','B','B','B','B','B','B','B','B','B'
+    db 'C','C','C','C','C','C','C','C','C','C'
+    db 0
+    
+start:
+    
+    mov ax,0
+    mov ds,ax
+    
+    mov si,data
+    
+    call put_string
+    
+    jmp $
+    
+times 510-($-$$) db 0
+
+dw 0xaa55
+        
+
+
+
+; DS:SI指向要输出的字符
+
+put_string:                          
+    mov cl,[si]
+    cmp cl,0
+    je  put_string_exit   ; 0代表字符串结束符
+    
+    call put_char    ; 显示字符
+    inc  si           ; 指向下一个字符 
+    jmp put_string
+    
+    put_string_exit:
+    
+    ret
+
+
+
+; ----- 显示一个字符 -----
+
+; 参数cl: 要显示的ASCII字符
+
+put_char: 
+
+    push ax
+    push bx
+    push cx
+    push dx
+    push ds
+    push si
+    
+    ; 设置索引寄存器0x3d4的值，指明要操作光标的高8位
+    mov dx,0x3d4
+    mov al,0x0e     ; 值0x0e，是光标寄存器高8位的索引
+    out dx,al  
+    
+    ; 从寄存器0x3d5，读取光标高8位的值
+    mov dx,0x3d5
+    in  al,dx
+    mov ah,al
+    
+    mov dx,0x3d4    ; 指定索引寄存器，操作光标的低8位
+    mov al,0x0f
+    out dx,al
+    mov dx,0x3d5    ; 读取光标低8位的值
+    in  al,dx
+    mov bx,ax       ; BX保存光标位置的16位数值
+    
+    cmp cl,0x0d     ; 判断回车符，如果是回车，光标要回到所在行的第一列
+    jne br          ; 跳转，判断换行符 
+    mov bl,80                       
+    div bl     ; 光标位置值已经在 DX+AX 中，除以80得到光标所在的行数
+    mul bl     ; 行数再乘以80（al*bl），得到光标所在行的第一列值，值存放在AX中
+    mov bx,ax  ; bx保存光标的位置
+    jmp set_cursor   ; 设置光标
+
+    br:
+        cmp cl,0x0a      ; 判断换行符
+        jne put_other    ; 不是，那就正常显示字符 
+        add bx,80
+        jmp roll_screen  ; 检测是否要滚动屏幕
+
+    put_other:           ; 正常显示字符
+         mov ax,0xb800
+         mov es,ax
+         shl bx,1        ; 光标值左移一位，也就是乘以2，得到光标所在位置对应显存的偏移值
+         mov [es:bx],cl  ; 将字符写进显存
+
+    shr bx,1   ;将光标位置推进一个字符
+    add bx,1
+
+    roll_screen:
+        cmp bx,2000     ; 判断光标是否超屏
+        jl  set_cursor  ; 如果没有超过，跳转到set_cursor
+        
+        mov ax,0xb800   ; 如果超过了，滚动屏幕，将第2行～第25行的字符全部上移一行
+        mov ds,ax
+        mov es,ax
+        cld
+        mov si,0xa0   ; 10*16=160，值 0xa0 刚好是第二行第一列
+        mov di,0x00
+        mov cx,1920
+        rep movsw     ; 一个字符占两字节
+    
+    
+    ; 使用黑底的空白字符，清除屏幕最底一行
+    
+    mov bx,3840  ; 第25行的第一列，偏移地址值就是3840
+    mov cx,80
+
+    cls:
+        mov  word[es:bx],0x0720
+        add  bx,2
+        loop cls
+        
+        mov bx,1920
+
+    ; 设置光标
+    set_cursor:
+        mov dx,0x3d4   ; 将索引寄存器的值设置成0x0e，指明要操控光标的高8位
+        mov al,0x0e
+        out dx,al       
+         
+        mov dx,0x3d5   ; 通过端口0x3d5，设置光标的高8位的值
+        mov al,bh
+        out dx,al     
+           
+        mov dx,0x3d4   ; 将索引寄存器的值设置成0x0f，指明要操控光标的低8位
+        mov al,0x0f
+        out dx,al
+        
+        mov dx,0x3d5   ; 通过端口0x3d5，设置光标的低8位的值
+        mov al,bl
+        out dx,al
+        
+        ret
+
+
+
+

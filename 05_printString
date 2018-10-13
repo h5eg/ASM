@@ -29,7 +29,9 @@ jmp start
 
 data:
     db 'A','A','A','A','A','A','A','A','A','A'
+    db 0x0d,0x0a
     db 'B','B','B','B','B','B','B','B','B','B'
+    db 0x0d,0x0a
     db 'C','C','C','C','C','C','C','C','C','C'
     db 0
     
@@ -43,15 +45,12 @@ start:
     call put_string
     
     jmp $
-    
-times 510-($-$$) db 0
-
-dw 0xaa55
         
 
 
-
-; DS:SI指向要输出的字符
+; ----- 输出字符串 -----
+; DS:SI，指向要输出的字符
+; 遇到数值零，结束字符串输出
 
 put_string:                          
     mov cl,[si]
@@ -59,7 +58,7 @@ put_string:
     je  put_string_exit   ; 0代表字符串结束符
     
     call put_char    ; 显示字符
-    inc  si           ; 指向下一个字符 
+    inc  si          ; 指向下一个字符 
     jmp put_string
     
     put_string_exit:
@@ -164,9 +163,22 @@ put_char:
         mov dx,0x3d5   ; 通过端口0x3d5，设置光标的低8位的值
         mov al,bl
         out dx,al
-        
-        ret
 
+
+
+    pop si
+    pop ds
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+        
+    ret
+
+    
+times 510-($-$$) db 0
+
+dw 0xaa55
 
 
 
